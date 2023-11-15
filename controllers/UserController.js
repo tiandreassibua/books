@@ -1,17 +1,19 @@
 const { User } = require("../models");
 const bcrypt = require("bcrypt");
+const { generateToken } = require("../utils/jwt");
 
 const register = async (req, res, next) => {
     try {
-        const salt = await bcrypt.genSalt(10);
-        const hashPassword = await bcrypt.hash(req.body.password, salt);
+        const user = await User.create(req.body);
 
-        const user = await User.create({
-            ...req.body,
-            password: hashPassword,
+        res.status(201).json({
+            message: "Register success",
+            data: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+            },
         });
-
-        res.status(201).json(user);
     } catch (error) {
         next(error);
     }
@@ -41,7 +43,32 @@ const login = async (req, res, next) => {
                 .json({ message: "Invalid email or password" });
         }
 
-        return res.status(200).json(user);
+        const token = await generateToken({
+            id: user.id,
+            isAdmin: user.isAdmin,
+        });
+
+        return res.status(200).json({
+            message: "Login success",
+            data: { token },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const get = async (req, res, next) => {
+    try {
+        const id = req.user.id;
+        const user = await User.findByPk(id, {
+            attributes: {
+                exclude: ["password"],
+            },
+        });
+
+        res.status(200).json({
+            data: user,
+        });
     } catch (error) {
         next(error);
     }
@@ -49,4 +76,6 @@ const login = async (req, res, next) => {
 
 module.exports = UserController = {
     register,
+    login,
+    get,
 };
